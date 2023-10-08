@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import mysql.connector
+import json
 
 app = Flask(__name__)
 
@@ -23,21 +24,36 @@ def handle_data():
         for row in result:
             data.append({
                 'id_sayur': row[0],
-                'nama_sayur': row[2],
-                'lokasi': row[1],
+                'nama_sayur': row[1],
+                'lokasi': row[2],
             })
         return jsonify(data)
 
     elif request.method == 'POST':
-        if request.headers['Content-Type'] != 'application/json':
-            return jsonify({'error': 'Unsupported Media Type'}), 415
-
-        new_data = request.json
-        query = "INSERT INTO sayur (nama_sayur, lokasi) VALUES (%s, %s)"
-        values = (new_data['nama_sayur'], new_data['lokasi'])
-        cursor.execute(query, values)
-        db.commit()
-        return jsonify({'message': 'Data berhasil ditambahkan'})
+        try:
+            if request.is_json:
+                new_data = request.get_json()
+                if 'nama_sayur' in new_data and 'lokasi' in new_data:
+                    query = "INSERT INTO sayur (nama_sayur, lokasi) VALUES (%s, %s)"
+                    values = (new_data['nama_sayur'], new_data['lokasi'])
+                    cursor.execute(query, values)
+                    db.commit()
+                    return jsonify({'message': 'Data berhasil ditambahkan'}), 201
+                else:
+                    return jsonify({'error': 'Invalid JSON data'}), 400
+            else:
+                nama_sayur = request.form.get('nama_sayur')
+                lokasi = request.form.get('lokasi')
+                if nama_sayur is not None and lokasi is not None:
+                    query = "INSERT INTO sayur (nama_sayur, lokasi) VALUES (%s, %s)"
+                    values = (nama_sayur, lokasi)
+                    cursor.execute(query, values)
+                    db.commit()
+                    return jsonify({'message': 'Data berhasil ditambahkan'}), 201
+                else:
+                    return jsonify({'error': 'Data tidak valid'}), 400
+        except Exception as e:
+            return jsonify({'error': 'Internal Server Error', 'details': str(e)}), 500
 
 
 if __name__ == '__main__':
